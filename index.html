@@ -2,67 +2,18 @@
 <html lang="hu">
 <head>
     <meta charset="UTF-8">
-    <title>Mérnöki Digitális Óra</title>
+    <title>Digitális Óra</title>
     <style>
-        body {
-            background-color: #0d0d0d;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            font-family: 'Courier New', monospace;
-        }
-
-        .clock-container {
-            display: flex;
-            gap: 15px;
-            background: #151515;
-            padding: 30px;
-            border: 2px solid #333;
-            border-radius: 4px;
-        }
-
-        .digit-group {
-            display: flex;
-            gap: 8px;
-        }
-
-        .separator {
-            display: flex;
-            align-items: center;
-            width: 15px;
-        }
-
-        .dot {
-            fill: #00ff41; /* Mátrix/Mérnöki zöld */
-            opacity: 0.2;
-        }
-
-        .blink .dot {
-            animation: pulse 1s infinite;
-        }
-
-        @keyframes pulse {
-            50% { opacity: 1; }
-        }
-
-        svg {
-            width: 70px;
-            height: 120px;
-        }
-
-        /* Mérnöki szegmensek: Alapállapot */
-        .segment {
-            fill: #1a1a1a;
-            transition: fill 0.1s;
-        }
-
-        /* Aktív állapot: Éles fény, kevesebb blur */
-        [data-active="true"] {
-            fill: #00ff41;
-            filter: drop-shadow(0 0 2px #00ff41);
-        }
+        body                 { background-color: #0d0d0d; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: 'Courier New', monospace;  }
+        .clock-container     { display: flex; gap: 15px; background: #151515; padding: 30px; border: 2px solid #333; border-radius: 4px; }
+        .digit-group         { display: flex; gap: 8px; }
+        .separator           { display: flex; align-items: center; width: 15px; }
+        .dot                 { fill: #00ff41; opacity: 0.2; }
+        .blink .dot          { animation: pulse 1s infinite; }
+        @keyframes pulse     { 50% { opacity: 1; } }
+        svg                  { width: 70px; height: 120px; }
+        .segment             { fill: #1a1a1a; transition: fill 0.1s; }
+        [data-active="true"] { fill: #00ff41; filter: drop-shadow(0 0 2px #00ff41); }
     </style>
 </head>
 <body>
