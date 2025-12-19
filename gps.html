@@ -1,0 +1,109 @@
+﻿ <!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Tracker - Útvonalrögzítés</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; background: #1a1a1a; color: white; display: flex; flex-direction: column; height: 100vh; }
+        #header { padding: 10px; background: #333; border-bottom: 4px solid #ff0000; text-align: center; font-size: 0.9rem; }
+        #map { flex-grow: 1; width: 100%; }
+        .controls { position: absolute; bottom: 25px; width: 100%; display: flex; justify-content: center; gap: 10px; z-index: 1000; }
+        button { border: none; padding: 12px 20px; border-radius: 25px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .btn-start { background-color: #00ff00; color: black; }
+        .btn-save { background-color: #ff0000; color: white; }
+        #stats { font-size: 0.8rem; color: #ccc; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+    <div id="header">
+        <strong>GPS Tracker</strong> | <span id="coords">Készen áll</span>
+        <div id="stats">Pontok száma: <span id="point-count">0</span></div>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="controls">
+        <button class="btn-start" onclick="startTracking()">Indítás</button>
+        <button class="btn-save" onclick="saveData()">Mentés fájlba</button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        let map, marker, pathLine;
+        let recordedCoords = []; // Itt tároljuk az utat a mentéshez
+        let isTracking = false;
+
+        // Térkép alapbeállítása
+        map = L.map('map').setView([47.1625, 19.5033], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        // Piros vonal az útvonalnak (Benedek stílusa)
+        pathLine = L.polyline([], {color: '#ff0000', weight: 5}).addTo(map);
+
+        function startTracking() {
+            if (isTracking) return;
+            if ("geolocation" in navigator) {
+                isTracking = true;
+                document.getElementById('coords').innerText = "Követés...";
+                navigator.geolocation.watchPosition(updateTracking, showError, {
+                    enableHighAccuracy: true,
+                    maximumAge: 1000
+                });
+            }
+        }
+
+        function updateTracking(position) {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            const newPos = [lat, lon];
+
+            // Koordináták rögzítése a listába
+            recordedCoords.push(`${new Date().toLocaleTimeString()} - Lat: ${lat}, Lon: ${lon}`);
+            document.getElementById('point-count').innerText = recordedCoords.length;
+            document.getElementById('coords').innerText = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+
+            // Térkép frissítése
+            if (!marker) {
+                marker = L.marker(newPos).addTo(map);
+                map.setView(newPos, 17);
+            } else {
+                marker.setLatLng(newPos);
+            }
+
+            // Útvonal vonalának bővítése
+            pathLine.addLatLng(newPos);
+            map.panTo(newPos);
+        }
+
+        function saveData() {
+            if (recordedCoords.length === 0) {
+                alert("Nincs rögzített adat!");
+                return;
+            }
+
+            const blob = new Blob([recordedCoords.join('\n')], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            
+            a.href = url;
+            a.download = `utvonal_${new Date().toISOString().slice(0,10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            alert("Útvonal elmentve a letöltések közé!");
+        }
+
+        function showError(error) {
+            alert("Hiba: " + error.message);
+        }
+    </script>
+</body>
+</html>
