@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <title>Mérnöki Digitális Óra</title>
+    <style>
+        body {
+            background-color: #0d0d0d;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .clock-container {
+            display: flex;
+            gap: 15px;
+            background: #151515;
+            padding: 30px;
+            border: 2px solid #333;
+            border-radius: 4px;
+        }
+
+        .digit-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .separator {
+            display: flex;
+            align-items: center;
+            width: 15px;
+        }
+
+        .dot {
+            fill: #00ff41; /* Mátrix/Mérnöki zöld */
+            opacity: 0.2;
+        }
+
+        .blink .dot {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            50% { opacity: 1; }
+        }
+
+        svg {
+            width: 70px;
+            height: 120px;
+        }
+
+        /* Mérnöki szegmensek: Alapállapot */
+        .segment {
+            fill: #1a1a1a;
+            transition: fill 0.1s;
+        }
+
+        /* Aktív állapot: Éles fény, kevesebb blur */
+        [data-active="true"] {
+            fill: #00ff41;
+            filter: drop-shadow(0 0 2px #00ff41);
+        }
+    </style>
+</head>
+<body>
+
+<div class="clock-container">
+    <div class="digit-group" id="hours"></div>
+    <div class="separator blink">
+        <svg viewBox="0 0 20 100">
+            <rect class="dot" x="5" y="30" width="10" height="10" />
+            <rect class="dot" x="5" y="60" width="10" height="10" />
+        </svg>
+    </div>
+    <div class="digit-group" id="minutes"></div>
+    <div class="separator blink">
+        <svg viewBox="0 0 20 100">
+            <rect class="dot" x="5" y="30" width="10" height="10" />
+            <rect class="dot" x="5" y="60" width="10" height="10" />
+        </svg>
+    </div>
+    <div class="digit-group" id="seconds"></div>
+</div>
+
+<template id="digit-template">
+    <svg viewBox="0 0 60 100">
+        <rect class="segment" x="12" y="5"  width="36" height="6" data-seg="a" /> <rect class="segment" x="12" y="47" width="36" height="6" data-seg="g" /> <rect class="segment" x="12" y="89" width="36" height="6" data-seg="d" /> <rect class="segment" x="5"  y="12" width="6" height="34" data-seg="f" /> <rect class="segment" x="5"  y="54" width="6" height="34" data-seg="e" /> <rect class="segment" x="49" y="12" width="6" height="34" data-seg="b" /> <rect class="segment" x="49" y="54" width="6" height="34" data-seg="c" /> </svg>
+</template>
+
+<script>
+    const segmentMap = {
+        0: ['a', 'b', 'c', 'd', 'e', 'f'],
+        1: ['b', 'c'],
+        2: ['a', 'b', 'g', 'e', 'd'],
+        3: ['a', 'b', 'g', 'c', 'd'],
+        4: ['f', 'g', 'b', 'c'],
+        5: ['a', 'f', 'g', 'c', 'd'],
+        6: ['a', 'f', 'g', 'e', 'c', 'd'],
+        7: ['a', 'b', 'c'],
+        8: ['a', 'b', 'c', 'd', 'e', 'f', 'g'],
+        9: ['a', 'b', 'c', 'd', 'f', 'g']
+    };
+
+    function createDigit(containerId) {
+        const container = document.getElementById(containerId);
+        const template = document.getElementById('digit-template');
+        for (let i = 0; i < 2; i++) {
+            const clone = template.content.cloneNode(true);
+            container.appendChild(clone);
+        }
+    }
+
+    function updateDigit(groupElement, value) {
+        const digits = groupElement.querySelectorAll('svg');
+        const strValue = value.toString().padStart(2, '0');
+        
+        strValue.split('').forEach((num, idx) => {
+            const activeSegments = segmentMap[num];
+            const segments = digits[idx].querySelectorAll('.segment');
+            
+            segments.forEach(seg => {
+                const segLetter = seg.getAttribute('data-seg');
+                seg.setAttribute('data-active', activeSegments.includes(segLetter));
+            });
+        });
+    }
+
+    function updateClock() {
+        const now = new Date();
+        updateDigit(document.getElementById('hours'), now.getHours());
+        updateDigit(document.getElementById('minutes'), now.getMinutes());
+        updateDigit(document.getElementById('seconds'), now.getSeconds());
+    }
+
+    createDigit('hours');
+    createDigit('minutes');
+    createDigit('seconds');
+    
+    setInterval(updateClock, 1000);
+    updateClock();
+</script>
+
+</body>
+</html>
