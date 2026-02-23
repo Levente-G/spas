@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Déli Iránytű Pro</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: sans-serif; background-color: #121212; color: #ffffff;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100vh; overflow: hidden; touch-action: none;
+        }
+        #tap-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.7); z-index: 20; font-size: 18px; font-weight: bold; text-align: center;
+            padding: 20px; cursor: pointer; transition: opacity 0.3s;
+        }
+        .status-bar {
+            position: absolute; top: 20px; display: flex; gap: 20px; font-size: 12px;
+        }
+        .status { display: flex; align-items: center; gap: 5px; color: #aaa; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; background-color: #e53935; } /* Alapértelmezés: Piros */
+        .dot.active { background-color: #43a047; } /* Zöld */
+        
+        #compass-container {
+            width: 85vw; max-width: 320px; aspect-ratio: 1; margin-bottom: 30px;
+        }
+        svg { width: 100%; height: 100%; transition: transform 0.1s ease-out; }
+        .info-panel { text-align: center; margin: 10px 0; font-size: 22px; font-weight: bold; }
+        .label { font-size: 12px; color: #888; margin-bottom: 2px; text-transform: uppercase; font-weight: normal; }
+    </style>
+</head>
+<body>
+
+    <div id="tap-overlay">Érintsd meg a képernyőt az érzékelők és a hang indításához!</div>
+
+    <div class="status-bar">
+        <div class="status"><div class="dot" id="dot-sensor"></div> Iránytű</div>
+        <div class="status"><div class="dot" id="dot-gps"></div> GPS</div>
+    </div>
+
+    <div id="compass-container">
+        <svg id="compass-svg" viewBox="-100 -100 200 200">
+            <circle cx="0" cy="0" r="95" stroke="#333" stroke-width="4" fill="#222"/>
+            <g id="ticks"></g> <text x="0" y="-65" text-anchor="middle" font-size="16" fill="#aaa">N</text>
+            <text x="70" y="5" text-anchor="middle" font-size="16" fill="#aaa">E</text>
+            <text x="0" y="75" text-anchor="middle" font-weight="bold" font-size="20" fill="#e53935">S</text>
+            <text x="-70" y="5" text-anchor="middle" font-size="16" fill="#aaa">W</text>
+            
+            <polygon points="-8,0 8,0 0,55" fill="#e53935"/> <circle cx="0" cy="0" r="5" fill="#fff"/>
+        </svg>
+    </div>
+
+    <div class="info-panel">
+        <div class="label">Irányzék</div>
+        <div id="heading-display">--°</div>
+    </div>
+
+    <div class="info-panel">
+        <div class="label">Koordináták</div>
+        <div id="coords-display">--.-----, --.-----</div>
+    </div>
+
+    <script>
+        // Rovátkák generálása (5 fokonként)
+        const ticksGroup = document.getElementById('ticks');
+        for (let i = 0; i < 360; i += 5) {
+            const isMajor = i % 90 === 0;
+            ticksGroup.innerHTML += `<line x1="0" y1="-95" x2="0" y2="${isMajor ? -82 : -88}" stroke="${isMajor ? '#aaa' : '#555'}" stroke-width="${isMajor ? 2 : 1}" transform="rotate(${i})" />`;
+        }
+
+        let audioCtx;
+        let isFacingSouth = false;
+        let isInitialized = false;
+
+        const compassSvg = document.getElementById('compass-svg');
+        const headingDisplay = document.getElementById('heading-display');
+        const coordsDisplay = document.getElementById('coords-display');
+        const dotSensor = document.getElementById('dot-sensor');
+        const dotGps = document.getElementById('dot-gps');
+        const overlay = document.getElementById('tap-overlay');
+
+        function playBeep(frequency, duration = 0.3) {
+            if (!audioCtx || audioCtx.state !== 'running') return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = frequency;
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.start(audioCtx.currentTime);
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function handleOrientation(event) {
+            let heading = event.webkitCompassHeading !== undefined ? event.webkitCompassHeading : (event.alpha !== null ? 360 - event.alpha : null);
+            if (heading === null) return;
+
+            dotSensor.classList.add('active');
+            heading = (heading % 360 + 360) % 360;
+            headingDisplay.innerText = Math.round(heading) + '°';
+
+            compassSvg.style.transform = `rotate(${-heading}deg)`;
+
+            let inSouthZone = (heading >= 175 && heading <= 185);
+            if (inSouthZone && !isFacingSouth) {
+                playBeep(880, 0.4);
+                isFacingSouth = true;
+            } else if (!inSouthZone && isFacingSouth) {
+                playBeep(300, 0.4);
+                isFacingSouth = false;
+            }
+        }
+
+        function initSystems() {
+            if (isInitialized) return;
+            isInitialized = true;
+            overlay.style.display = 'none';
+
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                DeviceOrientationEvent.requestPermission().then(state => {
+                    if (state === 'granted') window.addEventListener('deviceorientation', handleOrientation, true);
+                    else dotSensor.classList.remove('active');
+                }).catch(() => dotSensor.classList.remove('active'));
+            } else {
+                window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+                window.addEventListener('deviceorientation', handleOrientation, true);
+            }
+
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(
+                    pos => {
+                        dotGps.classList.add('active');
+                        coordsDisplay.innerText = `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
+                    },
+                    err => { dotGps.classList.remove('active'); },
+                    { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+                );
+            }
+        }
+
+        document.body.addEventListener('click', initSystems);
+        document.body.addEventListener('touchstart', initSystems);
+    </script>
+</body>
+</html>
